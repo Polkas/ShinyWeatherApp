@@ -1,0 +1,99 @@
+---
+title: "DDP-Shiny Weather App"
+author: "Maciej Nasinski"
+date: "November 12, 2016"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+##Introduction
+
+```{r,echo=FALSE,message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(forecast)
+library(xts)
+```
+
+During the Coursera Data Science course (Developing Data Products) it was built a Shiny application.
+This application shows a spectrum of weather conditions across the world.
+Another objective was to give a possibility to predict a future weather conditions.
+Database was built using [WunderGround](https://www.wunderground.com). 
+It is important to state that the application is made for educational purpose and the data should not be use for commercial purpose.
+There was taken into account a continent location and a Hemisphere during selecting Cities for Database.
+From a wide palette of weather indicators there was chosen only 4 of them:
+
+- Mean Temperature Celsius
+- Mean Humidity
+- Mean Pressure h-Pa
+- Mean Wind Speed Km-h
+
+It should be surprising that there is not indicator for raining. 
+The decision was taken because of high unpredictable of raining and lack of records for this indicator.
+
+##Prediction Functionality
+
+The Main functionality of the app is to assess predictions of 4 most important indicators. 
+A prediction is calculated by functions from `r 'forecast'` package. 
+In most cases a significant seasonality gives chance for building valuable prediction.   
+Example for MeanHumidity Berlin:
+
+```{r,echo=FALSE}
+temp_all = read.csv("WeatherDatasFinal.csv")
+temp_all$GMT = as.Date(temp_all$GMT)
+temps = temp_all %>% group_by(GMT,year,month,week) 
+tempsg = temps %>% gather(key,value,-GMT,-year,-month,-week) 
+datas_pred = temps %>% group_by(year,month)%>% select(-week) %>% summarise_all(funs(mean(.,na.rm=TRUE))) 
+```
+
+```{r,echo=TRUE,fig.width=9,fig.height=4}
+Holt = HoltWinters(na.approx(ts(unlist(datas_pred[,'MeanHumidity_Berlin']),frequency = 12,start=c(1996,1),end=c(2016,11))))
+autoplot(forecast(Holt,h=12))
+```
+
+##Weather Conditions during Year - Plots
+
+Many people are interested in Weather conditions across the world. 
+The main aim is to show the difference in a clear manner. 
+Thus it was used a one frame plot of average values of last 20 records - during the year (week interval). 
+There is produced a static plot for a certain indicator and city.   
+Example for MeanHumidity Berlin:
+
+```{r cars, echo = FALSE}
+temp_all = read.csv("WeatherDatasFinal.csv")
+temp_all$GMT = as.Date(temp_all$GMT)
+tempsg = temp_all %>% 
+  group_by(GMT,year,month,week)  %>%
+  gather(key,value,-GMT,-year,-month,-week) 
+tempsg = tempsg%>%
+  as.data.frame() %>%
+  slice(grep("MeanHumidity", tempsg$key))
+```
+
+```{r,echo=TRUE,fig.width=8,fig.height=3,warning=FALSE}
+data_temporary = tempsg %>% as.data.frame() %>% slice(grep("MeanHumidity_Berlin", tempsg$key)) %>%
+  na.omit()
+ggplot(tempsg,aes(x=week,y=value,color=key))+ geom_smooth(size=1)+
+  geom_smooth(data=data_temporary,aes(x=week,y=value,color=key),size=4)+
+  theme(legend.position="top")
+```
+
+##Further possibilities to develop app.
+
+Current app is sufficient but far from being final product. 
+The main aim will be to build real-time downloading of a certain city. 
+Process of downloading data spread waiting time but new functionality probably worth it.
+
+##End
+
+Thank you for your time.
+
+[Application](https://polkas.shinyapps.io/ShinyAppWeather/)
+
+[Source Code](https://github.com/Polkas/ShinyWeatherApp)
+
+
